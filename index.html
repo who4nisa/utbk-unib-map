@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+<meta charset="utf-8">
+<title>Peta UTBK Universitas Bengkulu</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-minimap/dist/Control.MiniMap.min.css"/>
+<link rel="stylesheet" href="https://unpkg.com/leaflet-easybutton/src/easy-button.css"/>
+
+<link rel="stylesheet" href="style.css">
+
+</head>
+
+<body>
+
+<div class="sidebar">
+
+<h2>Lokasi UTBK</h2>
+
+<select id="pilihGedung">
+<option value="">Pilih lokasi UTBK</option>
+<option value="1">UTBK 1 - LPTIK</option>
+<option value="2">UTBK 2 - Kedokteran</option>
+<option value="3">UTBK 3 - FEB</option>
+<option value="4">UTBK 4 - FISIPOL</option>
+<option value="5">UTBK 5 - FKIP</option>
+<option value="6">UTBK 6 - Lab SI</option>
+<option value="7">UTBK 7 - Perpustakaan</option>
+<option value="8">UTBK 8 - Hukum</option>
+</select>
+
+<h3>Mode Transportasi</h3>
+
+<select id="transport">
+<option value="motor">Motor</option>
+<option value="car">Mobil</option>
+<option value="bike">Sepeda</option>
+<option value="foot">Jalan kaki</option>
+</select>
+
+</div>
+
+<div id="map"></div>
+
+<div id="coords"></div>
+
+<img src="icon/north.png" class="north">
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+<script src="https://unpkg.com/leaflet-minimap/dist/Control.MiniMap.min.js"></script>
+<script src="https://unpkg.com/leaflet-easybutton/src/easy-button.js"></script>
+
+<script src="script.js"></script>
+
+</body>
+</html>
