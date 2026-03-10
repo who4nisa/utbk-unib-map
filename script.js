@@ -1,6 +1,6 @@
 const lokasiUTBK = {
     1: { nama: "LPTIK", lat: -3.758386, lng: 102.274915 },
-    2: { nama: "Kedokteran", lat: -3.756357, lng: 102.277506 },
+    2: { nama: "Kedokteran", lat: -3.754998, lng: 102.277983 },
     3: { nama: "FEB", lat: -3.761844, lng: 102.268918 },
     4: { nama: "FISIPOL", lat: -3.759039, lng: 102.274534 },
     5: { nama: "FKIP", lat: -3.758193, lng: 102.275693 },
@@ -93,14 +93,27 @@ function initMap() {
     }).addTo(map);
 
     routingControl.on('routesfound', function(e) {
+
         const routes = e.routes;
         const summary = routes[0].summary;
-        
-        document.getElementById('routeDistance').textContent = (summary.totalDistance / 1000).toFixed(2) + ' km';
-        document.getElementById('routeDuration').textContent = Math.round(summary.totalTime / 60) + ' mnt';
-        document.getElementById('routeInfo').style.display = 'block';
-    });
 
+        const distanceKm = summary.totalDistance / 1000;
+
+        // ambil kecepatan berdasarkan transportasi
+        const speed = transportSpeeds[currentTransportMode];
+
+        // hitung waktu
+        const estimatedTime = (distanceKm / speed) * 60;
+
+        document.getElementById('routeDistance').textContent =
+            distanceKm.toFixed(2) + ' km';
+
+        document.getElementById('routeDuration').textContent =
+            Math.round(estimatedTime) + ' mnt';
+
+        document.getElementById('routeInfo').style.display = 'block';
+
+    });
     const osm2 = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
     new L.Control.MiniMap(osm2, {
         toggleDisplay: true,
@@ -299,7 +312,8 @@ function setupEventListeners() {
             
             currentTransportMode = this.dataset.mode;
             updateRouteColor();
-            
+            updateRoute();        
+                
             if (routingControl.getWaypoints().length > 0) {
                 routingControl.setWaypoints(routingControl.getWaypoints());
             }
