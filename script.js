@@ -21,18 +21,15 @@ let routeColors = {
     foot: '#aa44aa'
 };
 
+setTimeout(()=>{
+map.invalidateSize();
+},200);
+
 const transportSpeeds = {
     motor: 40,
     car: 30,
     bike: 15,
     foot: 5
-};
-
-const transportIcons = {
-    motor: '🏍️',
-    car: '🚗',
-    bike: '🚲',
-    foot: '🚶'
 };
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -42,10 +39,20 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initMap() {
-    map = L.map('map').setView([-3.7585, 102.2735], 16);
+    map = L.map('map',{
+    zoomControl:false
+    }).setView([-3.7585, 102.2735],16);
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors'
+    }).addTo(map);
+
+    // L.control.zoom({
+    // position:'bottomright'
+    // }).addTo(map);
+
+    L.control.zoom({
+    position: 'topleft'
     }).addTo(map);
 
     const batasUnib = L.polygon([
@@ -110,18 +117,15 @@ function initMap() {
             </div>
         `);
     }
-
     routingControl = L.Routing.control({
         waypoints: [],
         lineOptions: {
             styles: [{ color: routeColors[currentTransportMode], weight: 6 }]
         },
         routeWhileDragging: false,
-        showAlternatives: true,
-        fitSelectedRoutes: true,
-        createMarker: function() { return null; }
+        showAlternatives: false,
+        fitSelectedRoutes: true
     }).addTo(map);
-
     routingControl.on('routesfound', function(e) {
 
         const routes = e.routes;
@@ -320,16 +324,6 @@ async function searchLocation() {
     }
 }
 
-function selectUtbkLocation(id) {
-    document.getElementById('pilihGedung').value = id;
-    updateRoute();
-
-    document.querySelectorAll('.utbk-item').forEach(item => {
-        item.classList.remove('active');
-    });
-    document.querySelector(`.utbk-item[data-id="${id}"]`).classList.add('active');
-}
-
 function setupEventListeners() {
     document.getElementById('pilihGedung').addEventListener('change', function() {
         updateRoute();
@@ -380,9 +374,6 @@ function resetMap() {
     routingControl.setWaypoints([]);
     document.getElementById('pilihGedung').value = "";
     document.getElementById('routeInfo').style.display = 'none';
-    document.querySelectorAll('.utbk-item').forEach(item => {
-        item.classList.remove('active');
-    });
     showNotification('Peta direset ke posisi awal');
 }
 

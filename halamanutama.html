@@ -9,7 +9,6 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet-minimap/3.6.1/Control.MiniMap.min.css" />
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -101,54 +100,16 @@
             </div>
         </div>
 
+        <button class="menu-toggle" onclick="toggleSidebar()">
+        ☰
+        </button>
+
         <div id="map"></div>
 
         <div id="coords">Lat: - | Lng: -</div>
 
         <div class="compass">
             <img src="https://image.qwenlm.ai/public_source/e5975e4b-ec08-46d7-9b63-465b1823b44b/11867e719-e71e-4c61-8179-28f96e7bcc91.png" alt="Compass" id="compassImg">
-        </div>
-
-        <div class="control-buttons">
-            <button class="control-btn" onclick="locateUser()" title="Lokasi Saya">
-                <i class="ri-crosshair-line"></i>
-            </button>
-            <button class="control-btn" onclick="resetMap()" title="Reset Peta">
-                <i class="ri-home-line"></i>
-            </button>
-            <button class="control-btn" onclick="toggleSidebar()" title="Toggle Sidebar">
-                <i class="ri-menu-line"></i>
-            </button>
-        </div>
-
-        <div class="utbk-locations">
-            <h4><i class="ri-building-line"></i> Lokasi UTBK</h4>
-            <div class="utbk-list" id="utbkList">
-                <div class="utbk-item" data-id="1" onclick="selectUtbkLocation(1)">
-                    <i class="ri-map-pin-line"></i> UTBK 1 - LPTIK
-                </div>
-                <div class="utbk-item" data-id="2" onclick="selectUtbkLocation(2)">
-                    <i class="ri-map-pin-line"></i> UTBK 2 - Kedokteran
-                </div>
-                <div class="utbk-item" data-id="3" onclick="selectUtbkLocation(3)">
-                    <i class="ri-map-pin-line"></i> UTBK 3 - FEB
-                </div>
-                <div class="utbk-item" data-id="4" onclick="selectUtbkLocation(4)">
-                    <i class="ri-map-pin-line"></i> UTBK 4 - FISIPOL
-                </div>
-                <div class="utbk-item" data-id="5" onclick="selectUtbkLocation(5)">
-                    <i class="ri-map-pin-line"></i> UTBK 5 - FKIP
-                </div>
-                <div class="utbk-item" data-id="6" onclick="selectUtbkLocation(6)">
-                    <i class="ri-map-pin-line"></i> UTBK 6 - Lab SI
-                </div>
-                <div class="utbk-item" data-id="7" onclick="selectUtbkLocation(7)">
-                    <i class="ri-map-pin-line"></i> UTBK 7 - Perpustakaan
-                </div>
-                <div class="utbk-item" data-id="8" onclick="selectUtbkLocation(8)">
-                    <i class="ri-map-pin-line"></i> UTBK 8 - Hukum
-                </div>
-            </div>
         </div>
     </div>
 
