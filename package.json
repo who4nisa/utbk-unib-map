@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "leaflet-compass": "^1.5.6"
+  }
+}

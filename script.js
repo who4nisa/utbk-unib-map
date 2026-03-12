@@ -1,3 +1,9 @@
+/* ====================================
+   Peta UTBK - Universitas Bengkulu
+   Theme: Dark Blue (#003f87) & Gold (#FFD700)
+   ==================================== */
+
+// UTBK Locations Database
 const lokasiUTBK = {
     1: { nama: "LPTIK", lat: -3.758386, lng: 102.274915 },
     2: { nama: "Kedokteran", lat: -3.754998, lng: 102.277983 },
@@ -9,22 +15,26 @@ const lokasiUTBK = {
     8: { nama: "Hukum", lat: -3.760623, lng: 102.268333 }
 };
 
+// Global Variables
 let map;
 let routingControl;
 let userLocation = null;
 let currentLocationMarker = null;
 let currentTransportMode = 'motor';
+let voiceEnabled = false;
+let locationWatchId = null;
+let osmb = null;
+let voiceLang = 'id-ID'; // Default language to Indonesian
+
+// Route Colors - Updated for new theme
 let routeColors = {
-    car: '#ff4444',
-    motor: '#4444ff',
-    bike: '#44aa44',
-    foot: '#aa44aa'
+    car: '#003f87',
+    motor: '#0052ad',
+    bike: '#FFD700',
+    foot: '#003f87'
 };
 
-setTimeout(()=>{
-map.invalidateSize();
-},200);
-
+// Transport Speeds (km/hour)
 const transportSpeeds = {
     motor: 40,
     car: 30,
@@ -32,10 +42,32 @@ const transportSpeeds = {
     foot: 5
 };
 
+// ====================================
+// INITIALIZATION & SETUP
+// ====================================
+
 document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('app-container').classList.add('visible');
-    initMap();
-    setupEventListeners();
+    // Initialize map jika di dalam app-container
+    if (document.getElementById('app-container').classList.contains('visible')) {
+        initMap();
+        setupEventListeners();
+    } else {
+        // Setup map untuk di-initialize nanti saat startApp() dipanggil
+        // Tambahkan listener untuk menginit map jika landing ditutup
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (document.getElementById('app-container').classList.contains('visible')) {
+                    initMap();
+                    setupEventListeners();
+                    observer.disconnect();
+                }
+            });
+        });
+        observer.observe(document.getElementById('app-container'), {
+            attributes: true,
+            attributeFilter: ['class']
+        });
+    }
 });
 
 function initMap() {
@@ -54,6 +86,8 @@ function initMap() {
     L.control.zoom({
     position: 'topleft'
     }).addTo(map);
+
+    // (OSMBuildings removed due to 403 Forbidden error on anonymous API)
 
     const batasUnib = L.polygon([
  // Dimulai dari selatan (bawah) mengikuti garis merah
@@ -124,7 +158,25 @@ function initMap() {
         },
         routeWhileDragging: false,
         showAlternatives: false,
-        fitSelectedRoutes: true
+        fitSelectedRoutes: true,
+        show: false,
+        collapsedClassName: 'leaflet-routing-collapsed',
+        expandedClassName: 'leaflet-routing-expanded',
+        waypointNameFallback: function(index) {
+            return 'Waypoint ' + (index + 1);
+        },
+        reverseWaypoints: false,
+        addWaypoints: false,
+        draggableWaypoints: false,
+        fitSelectedRoutes: true,
+        lineOptions: {
+            styles: [{ color: routeColors[currentTransportMode], weight: 6, opacity: 0.8 }],
+            extendToWaypoints: true,
+            missingRouteTolerance: 2
+        },
+        altLineOptions: {
+            styles: [{ color: '#ccc', weight: 5, opacity: 0.5, dashArray: '5, 10' }]
+        }
     }).addTo(map);
     routingControl.on('routesfound', function(e) {
 
@@ -145,7 +197,21 @@ function initMap() {
         document.getElementById('routeDuration').textContent =
             Math.round(estimatedTime) + ' mnt';
 
-        document.getElementById('routeInfo').style.display = 'block';
+        document.getElementById('routeInfo').classList.add('visible');
+        
+        // Show routing instructions
+        const instructions = routes[0].instructions;
+        displayRouteInstructions(instructions);
+        
+        if (voiceEnabled && instructions && instructions.length > 0) {
+            // Read out first instruction
+            speakInstruction(`Rute ke tujuan ditemukan. ${instructions[0].text}`);
+        }
+
+        // Collapse sidebar on mobile to show map & instructions clearly
+        if (window.innerWidth <= 768) {
+            document.querySelector('.sidebar').classList.remove('active');
+        }
 
     });
     const osm2 = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png');
@@ -154,18 +220,24 @@ function initMap() {
         position: 'bottomright'
     }).addTo(map);
 
-    L.Control.geocoder({
-        defaultMarkGeocode: false
-    }).on('markgeocode', function(e) {
-        const bbox = e.geocode.bbox;
-        const poly = L.polygon([
-            bbox.getSouthEast(),
-            bbox.getNorthEast(),
-            bbox.getNorthWest(),
-            bbox.getSouthWest()
-        ]).addTo(map);
-        map.fitBounds(poly.getBounds());
-    }).addTo(map);
+    // Native Leaflet Compass
+    map.addControl(new L.Control.Compass({
+        position: 'topright',
+        autoActive: true,
+        showDigit: true
+    }));
+
+    // Map Legend
+    const legend = L.control({ position: 'bottomleft' });
+    legend.onAdd = function (map) {
+        const div = L.DomUtil.create('div', 'info legend');
+        div.innerHTML += '<div class="legend-item"><span class="legend-dot unib-area"></span><span>Kawasan UNIB</span></div>';
+        div.innerHTML += '<div class="legend-item"><span class="legend-dot route-car"></span><span>Rute (Mobil/Jalan/Kaki)</span></div>';
+        div.innerHTML += '<div class="legend-item"><span class="legend-dot route-bike"></span><span>Rute (Sepeda)</span></div>';
+        div.innerHTML += '<div class="legend-item"><span class="legend-dot utbk-spot"></span><span>Lokasi Ujian</span></div>';
+        return div;
+    };
+    legend.addTo(map);
 
     locateUser();
 
@@ -179,6 +251,11 @@ function initMap() {
             searchLocation();
         }
     });
+
+    // Ensure map size is correct
+    setTimeout(() => {
+        map.invalidateSize();
+    }, 300);
 }
 
 const currentLocationIcon = L.divIcon({
@@ -203,6 +280,10 @@ const currentLocationIcon = L.divIcon({
     iconAnchor: [10, 10]
 });
 
+// ====================================
+// LOCATION MANAGEMENT FUNCTIONS
+// ====================================
+
 function locateUser() {
     showLoading(true);
     
@@ -212,22 +293,51 @@ function locateUser() {
         return;
     }
 
-    navigator.geolocation.getCurrentPosition(
+    if (locationWatchId !== null) {
+        navigator.geolocation.clearWatch(locationWatchId);
+    }
+
+    // Hindari loading tanpa henti jika sinyal GPS lemah
+    const loadingTimeout = setTimeout(() => {
+        showLoading(false);
+        if (!userLocation) {
+            showNotification('Sinyal GPS lambat. Silakan telusuri peta manual.', true);
+        }
+    }, 8000);
+
+    locationWatchId = navigator.geolocation.watchPosition(
         function(position) {
+            clearTimeout(loadingTimeout);
+            showLoading(false); // Selalu sembunyikan loading setelah berhasil dapat lokasi
+            
+            // Only use highly accurate GPS points (< 50m)
+            if (position.coords.accuracy > 50) {
+                console.log("Accuracy too low:", position.coords.accuracy);
+                // If it's the first time detecting, let's just use it anyway, but wait for better
+                if (!userLocation) {
+                    showNotification('Mendapatkan lokasi awal (akurasi rendah)...');
+                } else {
+                    return; // Skip inaccurate updates
+                }
+            }
+            
             const lat = position.coords.latitude;
             const lng = position.coords.longitude;
             setCurrentLocation(lat, lng);
-            showNotification('Lokasi berhasil dideteksi!');
-            showLoading(false);
+            
+            if (position.coords.accuracy <= 50) {
+                showNotification(`Lokasi akurat ditemukan (${Math.round(position.coords.accuracy)}m)`);
+            }
         },
         function(error) {
-            showNotification('Gagal mendeteksi lokasi. Aktifkan GPS!', true);
+            clearTimeout(loadingTimeout);
             showLoading(false);
+            showNotification('Gagal mendeteksi lokasi. Aktifkan GPS dan izinkan lokasi!', true);
         },
         {
             enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 0
+            maximumAge: 0,
+            timeout: 10000
         }
     );
 }
@@ -275,6 +385,10 @@ function setCurrentLocation(lat, lng) {
 }
 
 function clearLocation() {
+    if (locationWatchId !== null) {
+        navigator.geolocation.clearWatch(locationWatchId);
+        locationWatchId = null;
+    }
     if (currentLocationMarker) {
         map.removeLayer(currentLocationMarker);
         currentLocationMarker = null;
@@ -284,7 +398,12 @@ function clearLocation() {
     document.getElementById('latValue').textContent = '-';
     document.getElementById('lngValue').textContent = '-';
     routingControl.setWaypoints([]);
-    document.getElementById('routeInfo').style.display = 'none';
+    document.getElementById('routeInfo').classList.remove('visible');
+    document.getElementById('routeInstructions').classList.remove('visible');
+    
+    // Matikan suara sementara saat lokasi direset
+    window.speechSynthesis.cancel();
+    
     showNotification('Lokasi direset');
 }
 
@@ -324,6 +443,10 @@ async function searchLocation() {
     }
 }
 
+// ====================================
+// ROUTING & NAVIGATION FUNCTIONS
+// ====================================
+
 function setupEventListeners() {
     document.getElementById('pilihGedung').addEventListener('change', function() {
         updateRoute();
@@ -350,18 +473,166 @@ function updateRoute() {
 
     if (!userLocation || !destinationId) {
         routingControl.setWaypoints([]);
-        document.getElementById('routeInfo').style.display = 'none';
+        document.getElementById('routeInfo').classList.remove('visible');
+        document.getElementById('routeInstructions').classList.remove('visible');
         return;
     }
 
     const destination = lokasiUTBK[destinationId];
+    
+    // Update destination header dengan nama gedung
+    const destinationName = document.querySelector(`#pilihGedung option[value="${destinationId}"]`).textContent;
+    const routeHeader = document.querySelector('#routeInfo h3');
+    if (routeHeader) {
+        routeHeader.innerHTML = `<i class="ri-route-line"></i> Rute ke ${destinationName}`;
+    }
+    
+    // Sembunyikan instruksi lama sebelum yang baru muncul
+    document.getElementById('routeInstructions').classList.remove('visible');
+    
     routingControl.setWaypoints([
         userLocation,
         L.latLng(destination.lat, destination.lng)
     ]);
 
-    map.setView([destination.lat, destination.lng], 17);
+    // Fit bounds dengan padding untuk menampilkan rute keseluruhan
+    setTimeout(() => {
+        try {
+            const bounds = L.latLngBounds([
+                userLocation,
+                L.latLng(destination.lat, destination.lng)
+            ]);
+            map.fitBounds(bounds, { padding: [100, 100] });
+        } catch (e) {
+            map.setView([destination.lat, destination.lng], 16);
+        }
+    }, 200);
+    
     showNotification(`Rute ke ${destination.nama} dihitung!`);
+}
+
+function displayRouteInstructions(instructions) {
+    const instructionsContainer = document.getElementById('routeInstructions');
+    const instructionsList = document.getElementById('instructionsList');
+    if (!instructionsContainer || !instructionsList) return;
+    
+    if (!instructions || instructions.length === 0) {
+        instructionsContainer.classList.remove('visible');
+        return;
+    }
+    
+    let instructionsHTML = '';
+    
+    instructions.forEach((instruction, index) => {
+        const iconMap = {
+            'Head': 'ri-compass-line',
+            'TurnAhead': 'ri-arrow-right-line',
+            'TurnLeft': 'ri-arrow-left-line',
+            'TurnRight': 'ri-arrow-right-line',
+            'TurnSharpLeft': 'ri-corner-down-left-line',
+            'TurnSharpRight': 'ri-corner-down-right-line',
+            'Continue': 'ri-arrow-down-line',
+            'ArrivesAt': 'ri-map-pin-2-line'
+        };
+        
+        let translatedText = instruction.text || 'Lanjutkan';
+        
+        // Translation and icon matching logic
+        if (voiceLang === 'id-ID') {
+            // First pass for matching exact phrases
+            if (translatedText.match(/Make a U-turn/ig)) {
+                translatedText = 'Putar balik';
+                instruction.type = 'Head'; // fallback trick, but map custom icon below
+            } else if (translatedText.match(/Turn sharp right/ig)) {
+                translatedText = 'Belok tajam ke kanan';
+                instruction.type = 'TurnSharpRight';
+            } else if (translatedText.match(/Turn sharp left/ig)) {
+                translatedText = 'Belok tajam ke kiri';
+                instruction.type = 'TurnSharpLeft';
+            } else if (translatedText.match(/Turn slight right/ig)) {
+                translatedText = 'Belok serong kanan';
+                instruction.type = 'TurnRight';
+            } else if (translatedText.match(/Turn slight left/ig)) {
+                translatedText = 'Belok serong kiri';
+                instruction.type = 'TurnLeft';
+            } else if (translatedText.match(/Turn right/ig)) {
+                translatedText = 'Belok kanan';
+                instruction.type = 'TurnRight';
+            } else if (translatedText.match(/Turn left/ig)) {
+                translatedText = 'Belok kiri';
+                instruction.type = 'TurnLeft';
+            } else if (translatedText.match(/Head/ig)) {
+                translatedText = translatedText.replace(/Head/ig, 'Menuju');
+                instruction.type = 'Head';
+            } else if (translatedText.match(/Continue/ig)) {
+                translatedText = 'Lanjutkan lurus';
+                instruction.type = 'Continue';
+            } else if (translatedText.match(/You have arrived at your destination/ig)) {
+                translatedText = 'Anda telah tiba di tujuan';
+                instruction.type = 'ArrivesAt';
+            }
+            // General replacements
+            translatedText = translatedText.replace(/on the left/ig, 'di sebelah kiri');
+            translatedText = translatedText.replace(/on the right/ig, 'di sebelah kanan');
+            translatedText = translatedText.replace(/straight/ig, 'lurus');
+            translatedText = translatedText.replace(/onto/ig, 'ke jalan');
+            translatedText = translatedText.replace(/and/ig, 'dan');
+            translatedText = translatedText.replace(/destination/ig, 'Tujuan');
+            translatedText = translatedText.replace(/at the roundabout/ig, 'di bundaran');
+            translatedText = translatedText.replace(/take the/ig, 'ambil');
+            translatedText = translatedText.replace(/exit/ig, 'keluar');
+        }
+        
+        let icon = iconMap[instruction.type] || 'ri-arrow-down-line';
+        if (translatedText.toLowerCase().includes('putar balik')) {
+            icon = 'ri-arrow-go-back-line';
+        } else if (translatedText.toLowerCase().includes('belok kanan') || translatedText.toLowerCase().includes('serong kanan') || translatedText.toLowerCase().includes('tajam ke kanan')) {
+            icon = 'ri-arrow-right-line';
+        } else if (translatedText.toLowerCase().includes('belok kiri') || translatedText.toLowerCase().includes('serong kiri') || translatedText.toLowerCase().includes('tajam ke kiri')) {
+            icon = 'ri-arrow-left-line';
+        } else if (translatedText.toLowerCase().includes('tiba') || translatedText.toLowerCase().includes('tujuan')) {
+            icon = 'ri-map-pin-2-line';
+        } else if (translatedText.toLowerCase().includes('lurus') || translatedText.toLowerCase().includes('menuju')) {
+            icon = 'ri-arrow-up-line';
+        }
+        const distance = instruction.distance ? (instruction.distance / 1000).toFixed(2) : '0.00';
+        
+        // Escape quotes to prevent breaking HTML onClick
+        const safeSpeakText = translatedText.replace(/'/g, "\\'");
+
+        instructionsHTML += `
+            <div class="instruction-item" onclick="speakInstruction('${safeSpeakText}')" style="cursor: pointer;" title="Klik untuk mendengar instruksi">
+                <div class="instruction-icon"><i class="${icon}"></i></div>
+                <div class="instruction-text">
+                    <p>${translatedText}</p>
+                    <span class="instruction-distance">${distance} km</span>
+                </div>
+                <div class="instruction-voice-icon" style="color: var(--primary-color); opacity: ${voiceEnabled ? '0.8' : '0.3'};">
+                    <i class="ri-volume-up-line"></i>
+                </div>
+            </div>
+        `;
+    });
+    
+    instructionsList.innerHTML = instructionsHTML;
+    instructionsContainer.classList.add('visible');
+    
+    // Hide the toggle button if the popup is visible
+    const btnToggle = document.getElementById('btnToggleInstructions');
+    if (btnToggle) btnToggle.style.display = 'none';
+}
+
+function toggleRouteInstructions() {
+    const container = document.getElementById('routeInstructions');
+    const btnToggle = document.getElementById('btnToggleInstructions');
+    
+    if (container.classList.contains('visible')) {
+        container.classList.remove('visible');
+        if (btnToggle) btnToggle.style.display = 'flex';
+    } else {
+        container.classList.add('visible');
+        if (btnToggle) btnToggle.style.display = 'none';
+    }
 }
 
 function updateRouteColor() {
@@ -373,7 +644,12 @@ function resetMap() {
     map.setView([-3.7585, 102.2735], 16);
     routingControl.setWaypoints([]);
     document.getElementById('pilihGedung').value = "";
-    document.getElementById('routeInfo').style.display = 'none';
+    document.getElementById('routeInfo').classList.remove('visible');
+    document.getElementById('routeInstructions').classList.remove('visible');
+    
+    const btnToggle = document.getElementById('btnToggleInstructions');
+    if (btnToggle) btnToggle.style.display = 'none';
+    
     showNotification('Peta direset ke posisi awal');
 }
 
@@ -398,4 +674,101 @@ function showNotification(message, isError = false) {
     setTimeout(() => {
         notification.classList.remove('show');
     }, 3000);
+}
+
+// ====================================
+// TTS / VOICE FUNCTIONS
+// ====================================
+function toggleVoice() {
+    voiceEnabled = !voiceEnabled;
+    const btn = document.getElementById('btnVoice');
+    const icon = document.getElementById('voiceIcon');
+    const text = document.getElementById('voiceText');
+
+    if (voiceEnabled) {
+        btn.style.background = 'var(--success-color)';
+        btn.style.boxShadow = '0 4px 15px rgba(76, 175, 80, 0.4)';
+        icon.className = 'ri-volume-up-line';
+        text.textContent = 'Suara Aktif';
+        showNotification('Navigasi Suara Diaktifkan');
+        // Initialize speech synthesis (triggers permission on some browsers)
+        speakInstruction('Suara sistem navigasi aktif');
+    } else {
+        btn.style.background = 'var(--primary-light)';
+        btn.style.boxShadow = 'none';
+        icon.className = 'ri-volume-mute-line';
+        text.textContent = 'Suara Nonaktif';
+        window.speechSynthesis.cancel();
+        showNotification('Navigasi Suara Dinonaktifkan', true);
+    }
+}
+
+function speakInstruction(text) {
+    if (!voiceEnabled || !window.speechSynthesis) return;
+
+    // Clean text (remove any HTML tags if present, or translation fixes)
+    const cleanText = text.replace(/<(?:.|\n)*?>/gm, '');
+
+    window.speechSynthesis.cancel(); // Stop current speech
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.lang = voiceLang; 
+    
+    // Find matching voice if available
+    const voices = window.speechSynthesis.getVoices();
+    const targetVoice = voices.find(v => v.lang.includes(voiceLang.split('-')[0]));
+    if (targetVoice) utterance.voice = targetVoice;
+    
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+
+    window.speechSynthesis.speak(utterance);
+}
+
+function toggleLanguage() {
+    if (voiceLang === 'id-ID') {
+        voiceLang = 'en-US';
+        showNotification('Bahasa Suara: Inggris (English)');
+        document.getElementById('langText').textContent = 'ENG';
+        if(voiceEnabled) speakInstruction('Voice navigation is now set to English');
+    } else {
+        voiceLang = 'id-ID';
+        showNotification('Bahasa Suara: Indonesia');
+        document.getElementById('langText').textContent = 'IND';
+        if(voiceEnabled) speakInstruction('Suara sistem navigasi bahasa Indonesia');
+    }
+}
+
+// Initialize voices eagerly if possible
+if (window.speechSynthesis) {
+    window.speechSynthesis.onvoiceschanged = function() {
+        window.speechSynthesis.getVoices();
+    };
+}
+
+// ====================================
+// LANDING PAGE FUNCTIONS
+// ====================================
+
+function startApp() {
+    const landingPage = document.getElementById('landingPage');
+    const appContainer = document.getElementById('app-container');
+    
+    if (landingPage) {
+        landingPage.style.display = 'none';
+    }
+    if (appContainer) {
+        appContainer.classList.add('visible');
+    }
+    
+    // Auto-enable voice when user starts app (requires this user interaction to work in browsers)
+    if (!voiceEnabled) {
+        toggleVoice(); 
+    }
+}
+
+function resetMapBearing() {
+    if (map) {
+        map.setView([-3.7585, 102.2735], 16);
+        showNotification('Peta dikembalikan ke posisi awal');
+    }
 }

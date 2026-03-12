@@ -1,14 +1,24 @@
-<!-- File: index.html -->
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Peta UTBK Universitas Bengkulu - Peta</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+    <meta name="description" content="Peta interaktif UTBK Universitas Bengkulu dengan fitur pencarian lokasi dan routing untuk memudahkan peserta ujian.">
+    <meta name="theme-color" content="#003366">
+    
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Peta Navigasi UTBK Universitas Bengkulu">
+    <meta property="og:description" content="Cari lokasi gedung UTBK UNIB dan dapatkan rute tercepat dari lokasimu.">
+    <meta property="og:image" content="https://upload.wikimedia.org/wikipedia/commons/4/4e/Logo_Universitas_Bengkulu.png"> 
+
+    <title>Peta Navigasi UTBK - Universitas Bengkulu</title>
+
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/remixicon/3.5.0/remixicon.min.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet-compass@1.5.6/dist/leaflet-compass.min.css" />
+    
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -18,8 +28,21 @@
 
     <div class="notification" id="notification"></div>
 
+    <div class="landing-container" id="landingPage">
+        <div class="landing-content">
+            <div class="landing-logo">
+                <i class="ri-map-pin-user-line"></i>
+            </div>
+            <h1 class="landing-title">Navigasi UTBK</h1>
+            <p class="landing-subtitle">Sistem pemetaan interaktif untuk membantu Anda menemukan rute terbaik menuju lokasi Ujian Tulis Berbasis Komputer di Universitas Bengkulu.</p>
+            <button class="btn-start" onclick="startApp()">
+                Mulai Navigasi <i class="ri-arrow-right-line"></i>
+            </button>
+        </div>
+    </div>
+
     <div id="app-container">
-        <div class="sidebar">
+        <div class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <h2><i class="ri-university-line"></i> Peta UTBK</h2>
                 <p>Universitas Bengkulu</p>
@@ -27,39 +50,47 @@
             
             <div class="sidebar-content">
                 <div class="current-location-card">
-                    <h3><i class="ri-navigation-line"></i> Lokasi Sekarang</h3>
-                    <input type="text" class="form-input" id="currentLocationInput" placeholder="Ketik lokasi atau alamat...">
-                    <div class="location-actions">
-                        <button class="btn-geolocate" onclick="locateUser()">
-                            <i class="ri-gps-line"></i> GPS Saya
-                        </button>
-                        <button class="btn-clear" onclick="clearLocation()">
-                            <i class="ri-close-line"></i> Reset
+                    <h3><i class="ri-navigation-line"></i> Titik Awal Anda</h3>
+                    <div class="search-input-group">
+                        <input type="text" class="form-input" id="currentLocationInput" placeholder="Ketik nama jalan atau lokasi...">
+                        <button class="btn-search" onclick="searchLocation()" title="Cari Lokasi">
+                            <i class="ri-search-line"></i>
                         </button>
                     </div>
-                    <p class="location-hint"><i class="ri-information-line"></i> Geser titik biru di peta untuk mengubah lokasi</p>
+                    <div class="location-actions">
+                        <button class="btn-geolocate" onclick="locateUser()">
+                            <i class="ri-gps-line"></i> Gunakan GPS
+                        </button>
+                        <button class="btn-clear" onclick="clearLocation()">
+                            <i class="ri-refresh-line"></i> Reset
+                        </button>
+                    </div>
+                    <p class="location-hint">
+                        <i class="ri-information-line"></i> 
+                        Tips: Geser marker biru di peta untuk menentukan lokasi spesifik.
+                    </p>
                 </div>
 
                 <div class="form-group">
                     <label class="form-label">
-                        <i class="ri-flag-line"></i> Tujuan UTBK
+                        <i class="ri-flag-2-line"></i> Pilih Gedung Tujuan
                     </label>
                     <select class="form-select" id="pilihGedung">
                         <option value="">-- Pilih Lokasi UTBK --</option>
-                        <option value="1">UTBK 1 - LPTIK</option>
-                        <option value="2">UTBK 2 - Kedokteran</option>
-                        <option value="3">UTBK 3 - FEB</option>
-                        <option value="4">UTBK 4 - FISIPOL</option>
-                        <option value="5">UTBK 5 - FKIP</option>
-                        <option value="6">UTBK 6 - Lab SI</option>
-                        <option value="7">UTBK 7 - Perpustakaan</option>
-                        <option value="8">UTBK 8 - Hukum</option>
+                        <option value="1" data-lat="-3.7583" data-lng="102.2741">UTBK 1 - LPTIK</option>
+                        <option value="2" data-lat="-3.7595" data-lng="102.2755">UTBK 2 - Fakultas Kedokteran</option>
+                        <option value="3" data-lat="-3.7601" data-lng="102.2762">UTBK 3 - Fakultas Ekonomi & Bisnis</option>
+                        <option value="4" data-lat="-3.7610" data-lng="102.2770">UTBK 4 - FISIPOL</option>
+                        <option value="5" data-lat="-3.7620" data-lng="102.2780">UTBK 5 - FKIP</option>
+                        <option value="6" data-lat="-3.7590" data-lng="102.2730">UTBK 6 - Lab Sistem Informasi</option>
+                        <option value="7" data-lat="-3.7570" data-lng="102.2750">UTBK 7 - Perpustakaan Pusat</option>
+                        <option value="8" data-lat="-3.7630" data-lng="102.2790">UTBK 8 - Fakultas Hukum</option>
                     </select>
                 </div>
 
                 <div class="form-group">
                     <label class="form-label">
-                        <i class="ri-bike-line"></i> Mode Transportasi
+                        <i class="ri-steering-2-line"></i> Mode Perjalanan
                     </label>
                     <div class="transport-options">
                         <div class="transport-option active" data-mode="motor">
@@ -81,42 +112,62 @@
                     </div>
                 </div>
 
-                <div class="route-info" id="routeInfo" style="display: none;">
-                    <h3><i class="ri-route-line"></i> Informasi Rute</h3>
+                <div class="route-info" id="routeInfo">
+                    <h3 class="route-info-title">
+                        <i class="ri-route-line"></i> Estimasi Perjalanan
+                    </h3>
                     <div class="route-details">
                         <div class="route-detail">
-                            <div class="route-detail-value" id="routeDistance">-</div>
-                            <div class="route-detail-label">Jarak</div>
+                            <div class="route-detail-value" id="routeDistance">-- km</div>
+                            <div class="route-detail-label">Jarak Tempuh</div>
                         </div>
                         <div class="route-detail">
-                            <div class="route-detail-value" id="routeDuration">-</div>
-                            <div class="route-detail-label">Waktu</div>
+                            <div class="route-detail-value" id="routeDuration">-- mnt</div>
+                            <div class="route-detail-label">Estimasi Waktu</div>
                         </div>
                     </div>
                     <div class="coordinates-display">
                         Lat: <span id="latValue">-</span> | Lng: <span id="lngValue">-</span>
                     </div>
                 </div>
+
             </div>
         </div>
 
         <button class="menu-toggle" onclick="toggleSidebar()">
-        ☰
+            <i class="ri-menu-line"></i>
         </button>
 
         <div id="map"></div>
 
-        <div id="coords">Lat: - | Lng: -</div>
+        <!-- Floating Route Instructions Toggle Button -->
+        <button id="btnToggleInstructions" class="btn-toggle-instructions" onclick="toggleRouteInstructions()" style="display: none;">
+            <i class="ri-list-check"></i> Petunjuk Arah
+        </button>
 
-        <div class="compass">
-            <img src="https://image.qwenlm.ai/public_source/e5975e4b-ec08-46d7-9b63-465b1823b44b/11867e719-e71e-4c61-8179-28f96e7bcc91.png" alt="Compass" id="compassImg">
+        <!-- Floating Route Instructions Popup -->
+        <div class="route-instructions" id="routeInstructions">
+            <div class="route-instructions-header">
+                <h4 class="route-instructions-title"><i class="ri-list-check"></i> Petunjuk Arah</h4>
+                <button class="btn-close-instructions" onclick="toggleRouteInstructions()">
+                    <i class="ri-close-line"></i>
+                </button>
+            </div>
+            <div id="instructionsList" class="instructions-list">
+            </div>
+        </div>
+
+        <div id="coords" class="coords-display">
+            Lat: - | Lng: -
         </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
-    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+    <!-- Removed Geocoder --!>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet-minimap/3.6.1/Control.MiniMap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet-compass@1.5.6/dist/leaflet-compass.min.js"></script>
+    
     <script src="script.js"></script>
 </body>
 </html>
